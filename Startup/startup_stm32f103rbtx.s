@@ -12,12 +12,13 @@
  ******************************************************************************
  * @attention
  *
- * Copyright (c) 2025 STMicroelectronics.
- * All rights reserved.
+ * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
+ * All rights reserved.</center></h2>
  *
- * This software is licensed under terms that can be found in the LICENSE file
- * in the root directory of this software component.
- * If no LICENSE file comes with this software, it is provided AS-IS.
+ * This software component is licensed by ST under BSD 3-Clause license,
+ * the "License"; You may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
+ *                        opensource.org/licenses/BSD-3-Clause
  *
  ******************************************************************************
  */
@@ -27,14 +28,8 @@
 .fpu softvfp
 .thumb
 
-.include "stm32f10x.s"
-
 .global g_pfnVectors
 .global Default_Handler
-
-.equ ARRAY_START,  0x20000200
-.equ ARRAY_SIZE,   64
-.equ ELEMENT_SIZE, 3
 
 /* start address for the initialization values of the .data section.
 defined in linker script */
@@ -61,65 +56,49 @@ defined in linker script */
   .weak Reset_Handler
   .type Reset_Handler, %function
 Reset_Handler:
-  	ldr  	r11, =_estack
-  	mov   	sp, r11
+  ldr   r0, =_estack
+  mov   sp, r0          /* set stack pointer */
+/* Call the clock system intitialization function.*/
+  bl  SystemInit
 
-    ldr r0, =ARRAY_START
-    mov r1, #ARRAY_SIZE
-    ldr r2, =0xFFFFFF
+/* Copy the data segment initializers from flash to SRAM */
+  ldr r0, =_sdata
+  ldr r1, =_edata
+  ldr r2, =_sidata
+  movs r3, #0
+  b LoopCopyDataInit
 
-write:
-    mov r3, r2, LSR #16
-    mov r4, r2, LSR #8
-    and r4, r4, #0xFF
-    and r5, r2, #0xFF
+CopyDataInit:
+  ldr r4, [r2, r3]
+  str r4, [r0, r3]
+  adds r3, r3, #4
 
-    strb r3, [r0]
-    strb r4, [r0, #1]
-    strb r5, [r0, #2]
+LoopCopyDataInit:
+  adds r4, r0, r3
+  cmp r4, r1
+  bcc CopyDataInit
 
-    sub r2, r2, #1
-    and r2, r2, #0xFFFFFF
+/* Zero fill the bss segment. */
+  ldr r2, =_sbss
+  ldr r4, =_ebss
+  movs r3, #0
+  b LoopFillZerobss
 
-    add r0, r0, #ELEMENT_SIZE
+FillZerobss:
+  str  r3, [r2]
+  adds r2, r2, #4
 
-    subs r1, r1, #1
-    bne write
+LoopFillZerobss:
+  cmp r2, r4
+  bcc FillZerobss
 
-    ldr r0, =ARRAY_START
-    mov r1, #ARRAY_SIZE
-    sub r1, R1, #1
-    mov r2, #ELEMENT_SIZE
-    mul r1, R1, R2
-    add r1, R0, R1
+/* Call static constructors */
+  bl __libc_init_array
+/* Call the application's entry point.*/
+  bl main
 
-invert:
-    cmp r0, r1
-    bge loop
-
-    ldrb r3, [r0]
-    ldrb r4, [r0, #1]
-    ldrb r5, [r0, #2]
-
-    ldrb r6, [r1]
-    ldrb r7, [r1, #1]
-    ldrb r8, [r1, #2]
-
-    strb r3, [r1]
-    strb r4, [r1, #1]
-    strb r5, [r1, #2]
-
-    strb r6, [r0]
-    strb r7, [r0, #1]
-    strb r8, [r0, #2]
-
-    add r0, r0, #ELEMENT_SIZE
-    sub r1, r1, #ELEMENT_SIZE
-    b invert
-
-loop:
-	b loop
-
+LoopForever:
+    b LoopForever
 
   .size Reset_Handler, .-Reset_Handler
 
@@ -144,10 +123,9 @@ Infinite_Loop:
 * 0x0000.0000.
 *
 ******************************************************************************/
-
-
   .section .isr_vector,"a",%progbits
   .type g_pfnVectors, %object
+  .size g_pfnVectors, .-g_pfnVectors
 
 g_pfnVectors:
   .word _estack
@@ -226,7 +204,6 @@ g_pfnVectors:
   .word	DMA2_Channel2_IRQHandler  			/* DMA2 Channel2 global interrupt                   */
   .word	DMA2_Channel3_IRQHandler  			/* DMA2 Channel3 global interrupt                   */
   .word	DMA2_Channel4_5_IRQHandler			/* DMA2 Channel4 and DMA2 Channel5 global interrupt */
-  .size g_pfnVectors, .-g_pfnVectors
 
 /*******************************************************************************
 *
@@ -442,4 +419,4 @@ g_pfnVectors:
 
 	.weak	SystemInit
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+/************************ (C) COPYRIGHT STMicroelectonics *****END OF FILE****/
