@@ -20,6 +20,9 @@ set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/platform/STM32F103RBTX_FLASH.ld)
 
 add_executable(${PROJECT_NAME}
     src/main.c
+    src/clock.c
+    src/encoder.c
+    src/seg7.c
     platform/startup_stm32f103rbtx.s
     platform/syscalls.c
     platform/sysmem.c
